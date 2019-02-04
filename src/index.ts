@@ -44,9 +44,9 @@ const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
 	const out = {};
 	Object.keys(filter).forEach((k) => {
 		let isArray = false;
-		let schema = filter[k];
+		let schema = filter[k] as IFilterSchema;
 		if (Array.isArray(schema)) {
-			schema = schema[0];
+			schema = schema[0]  as IFilterSchema;
 			isArray = true;
 		}
 		if (schema.type !== String && schema.match) {
@@ -57,9 +57,9 @@ const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
 		} else {
 			let value = object[k];
 			// sub filtering for Object type
-			if (schema.type === Object && schema.filter) {
-				if (typeof value !== 'object') {
-					// if Object value type is not matching (i.e. mongodb object) we are returning undefined value
+			if (schema.type === Object && schema.filter ) {
+				if ('_bsontype' in value && Object.keys(value).length < 3) {
+					// if Object value type is not matching (i.e. non populated mongodb object) we are returning undefined value
 					value = undefined;
 				} else {
 					if (isArray) {
@@ -114,7 +114,10 @@ export const filterObject = <T extends object>(object: object, filter: IFilter):
 export const filterObjectArray = <T extends object>(objects: object[], filter: IFilter): T[] => {
 	const outArray: T[] = [];
 	objects.forEach((object) => {
-		outArray.push(filterObject<T>(object, filter));
+		const data = filterObject<T>(object, filter);
+		if (data) {
+			outArray.push(data);
+		}
 	});
 	return outArray as T[];
 };

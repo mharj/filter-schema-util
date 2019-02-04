@@ -119,7 +119,7 @@ describe('filter', () => {
 			expect(
 				filterObject.bind(
 					{
-						sub: 'some nice mongodb ID',
+						sub: {id: 'test', _bsontype: 'ObjectID'},
 					},
 					filter,
 				),
