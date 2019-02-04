@@ -1,4 +1,5 @@
-interface IFilterChema {
+// Schema type
+interface IFilterSchema {
 	type: any;
 	required?: boolean;
 	hidden?: true;
@@ -7,27 +8,38 @@ interface IFilterChema {
 	match?: RegExp;
 }
 
+// Filter type
 export interface IFilter {
-	[key: string]: IFilterChema | IFilterChema[];
+	[key: string]: IFilterSchema | IFilterSchema[];
 }
 
-export type FilterRequire<C> = {[P in keyof C]-?: IFilterChema | IFilterChema[]};
+// Type to control schema building
+export type FilterBuilder<C> = {[P in keyof C]-?: IFilterSchema | IFilterSchema[]};
 
+/**
+ * Type conversion function
+ * @param type is required type
+ * @param inValue value to be fixed if there is need.
+ */
 const doTypeConversions = (type: any, inValue: any) => {
 	let value = inValue;
 	if (Array.isArray(inValue)) {
 		value = inValue.map((v) => doTypeConversions(type, v));
 	} else {
-		if (type === Number && !Number.isInteger(value)) {
+		if (type === Number && typeof value === 'string') {
 			value = Number.parseFloat(value);
 		}
-		if (type === String && typeof value !== 'string') {
-			value = '' + value;
+		if (type === String && typeof value === 'number') {
+			value = value.toString();
 		}
 	}
 	return value;
 };
-
+/**
+ * Filtering function
+ * @param object to filter
+ * @param filter schema object
+ */
 const doFilterRequirementKeys = <T>(object: object, filter: IFilter) => {
 	const out = {};
 	Object.keys(filter).forEach((k) => {

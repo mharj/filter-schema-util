@@ -1,6 +1,6 @@
 import {expect} from 'chai';
 import {describe, it} from 'mocha';
-import {filterObject, FilterRequire} from '../src/index';
+import {FilterBuilder, filterObject} from '../src/index';
 
 interface ITest {
 	param1: number;
@@ -31,7 +31,7 @@ interface IArrayTest {
 describe('filter', () => {
 	describe('filterObject', () => {
 		it('basic filter', () => {
-			const filter: FilterRequire<ITest> = {
+			const filter: FilterBuilder<ITest> = {
 				param1: {type: Number, required: true},
 				param2: {type: String, required: true},
 				param3: {type: Number},
@@ -42,20 +42,20 @@ describe('filter', () => {
 			expect(output).to.be.eql({param1: 1, param2: '2', param3: 3, param4: '4'});
 		});
 		it('array filter', () => {
-			const filter: FilterRequire<IArrayTest> = {
+			const filter: FilterBuilder<IArrayTest> = {
 				names: [{type: String, required: true}],
 			};
-			const output = filterObject<IArrayTest>({names: ['test','test',1]}, filter);
-			expect(output).to.be.eql({names: ['test','test','1']});
+			const output = filterObject<IArrayTest>({names: ['test', 'test', 1]}, filter);
+			expect(output).to.be.eql({names: ['test', 'test', '1']});
 		});
 		it('sub filtering', () => {
-			const subFilter: FilterRequire<ITestSub> = {
+			const subFilter: FilterBuilder<ITestSub> = {
 				default: {type: Boolean, default: true},
 				name: {type: String, required: true},
 				secret: {type: String, hidden: true},
 				test: {type: Number, required: true},
 			};
-			const filter: FilterRequire<ITestMain> = {
+			const filter: FilterBuilder<ITestMain> = {
 				sub: {type: Object, filter: subFilter},
 			};
 			const output = filterObject<ITestMain>(
@@ -72,7 +72,7 @@ describe('filter', () => {
 			const subFilter = {
 				name: {type: String, required: true},
 			};
-			const filter: FilterRequire<ITestArrayMain> = {
+			const filter: FilterBuilder<ITestArrayMain> = {
 				sub: [{type: Object, filter: subFilter}],
 			};
 			const output = filterObject<ITestArrayMain>(
