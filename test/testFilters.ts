@@ -92,5 +92,38 @@ describe('filter', () => {
 			expect(filterObject({test: 'abc'}, filter)).to.be.eql({test: 'abc'});
 			expect(filterObject.bind({test: 'qwe'}, filter)).to.throw();
 		});
+		it('sub filtering without solving', () => {
+			const subFilter: FilterBuilder<{name: true}> = {
+				name: {type: String, required: true},
+			};
+			const filter: FilterBuilder<ITestMain> = {
+				sub: {type: Object, filter: subFilter},
+			};
+			const output = filterObject<ITestMain>(
+				{
+					sub: 'some nice mongodb ID',
+				},
+				filter,
+			);
+			expect(output).to.be.eql({
+				sub: undefined,
+			});
+		});
+		it('sub filtering with required solving', () => {
+			const subFilter: FilterBuilder<{name: true}> = {
+				name: {type: String, required: true},
+			};
+			const filter: FilterBuilder<ITestMain> = {
+				sub: {type: Object, filter: subFilter, required: true},
+			};
+			expect(
+				filterObject.bind(
+					{
+						sub: 'some nice mongodb ID',
+					},
+					filter,
+				),
+			).to.throw();
+		});
 	});
 });

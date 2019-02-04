@@ -40,7 +40,7 @@ const doTypeConversions = (type: any, inValue: any) => {
  * @param object to filter
  * @param filter schema object
  */
-const doFilterRequirementKeys = <T>(object: object, filter: IFilter) => {
+const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
 	const out = {};
 	Object.keys(filter).forEach((k) => {
 		let isArray = false;
@@ -58,10 +58,15 @@ const doFilterRequirementKeys = <T>(object: object, filter: IFilter) => {
 			let value = object[k];
 			// sub filtering for Object type
 			if (schema.type === Object && schema.filter) {
-				if (isArray) {
-					value = filterObjectArray(value, schema.filter);
+				if (typeof value !== 'object') {
+					// if Object value type is not matching (i.e. mongodb object) we are returning undefined value
+					value = undefined;
 				} else {
-					value = filterObject(value, schema.filter);
+					if (isArray) {
+						value = filterObjectArray(value, schema.filter);
+					} else {
+						value = filterObject(value, schema.filter);
+					}
 				}
 			}
 			// attach default value if no value;
