@@ -125,5 +125,38 @@ describe('filter', () => {
 				),
 			).to.throw();
 		});
+		it('sub filtering array without solving', () => {
+			const subFilter: FilterBuilder<{name: true}> = {
+				name: {type: String},
+			};
+			const filter: FilterBuilder<ITestMain> = {
+				sub: [{type: Object, filter: subFilter}],
+			};
+			const output = filterObject<ITestMain>(
+				{
+					sub: [{id: 'test', _bsontype: 'ObjectID'}],
+				},
+				filter,
+			);
+			expect(output).to.be.eql({
+				sub: undefined,
+			});
+		});
+		it('sub filtering array with required solving', () => {
+			const subFilter: FilterBuilder<{name: true}> = {
+				name: {type: String, required: true},
+			};
+			const filter: FilterBuilder<ITestMain> = {
+				sub: [{type: Object, filter: subFilter, required: true}],
+			};
+			expect(
+				filterObject.bind(
+					{
+						sub: [{id: 'test', _bsontype: 'ObjectID'}],
+					},
+					filter,
+				),
+			).to.throw();
+		});
 	});
 });

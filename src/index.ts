@@ -35,6 +35,12 @@ const doTypeConversions = (type: any, inValue: any) => {
 	}
 	return value;
 };
+
+const isMongoDBId = (value: object): boolean => {
+	const valueKeys = Object.keys(value);
+	return valueKeys.indexOf('_bsontype') !== -1 && Object.keys(value).length < 3;
+};
+
 /**
  * Filtering function
  * @param object to filter
@@ -60,14 +66,22 @@ const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
 			let value = object[k];
 			// sub filtering for Object type
 			if (schema.type === Object && schema.filter) {
-				const valueKeys = Object.keys(value);
 				// TODO: figure out how to do helper for MongoID type
-				if (valueKeys.indexOf('_bsontype') !== -1 && Object.keys(value).length < 3) {
-					// if Object value type is not matching (i.e. non populated mongodb object) we are returning undefined value
-					value = undefined;
-				} else {
-					if (isArray) {
+				if (isArray) {
+					if (value.length > 0) {
+						if (isMongoDBId(value[0])) {
+							// if Object value type is not matching (i.e. non populated mongodb object) we are returning undefined value
+							value = undefined;
+						} else {
+							value = filterObjectArray(value, schema.filter);
+						}
+					} else {
 						value = filterObjectArray(value, schema.filter);
+					}
+				} else {
+					if (isMongoDBId(value)) {
+						// if Object value type is not matching (i.e. non populated mongodb object) we are returning undefined value
+						value = undefined;
 					} else {
 						value = filterObject(value, schema.filter);
 					}
