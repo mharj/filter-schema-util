@@ -94,14 +94,14 @@ describe('filter', () => {
 		});
 		it('sub filtering without solving', () => {
 			const subFilter: FilterBuilder<{name: true}> = {
-				name: {type: String, required: true},
+				name: {type: String},
 			};
 			const filter: FilterBuilder<ITestMain> = {
 				sub: {type: Object, filter: subFilter},
 			};
 			const output = filterObject<ITestMain>(
 				{
-					sub: 'some nice mongodb ID',
+					sub: {id: 'test', _bsontype: 'ObjectID'},
 				},
 				filter,
 			);

@@ -41,24 +41,28 @@ const doTypeConversions = (type: any, inValue: any) => {
  * @param filter schema object
  */
 const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
+	const objectKeys = Object.keys(object);
 	const out = {};
 	Object.keys(filter).forEach((k) => {
 		let isArray = false;
 		let schema = filter[k] as IFilterSchema;
 		if (Array.isArray(schema)) {
-			schema = schema[0]  as IFilterSchema;
+			schema = schema[0] as IFilterSchema;
 			isArray = true;
 		}
 		if (schema.type !== String && schema.match) {
 			throw new Error(`Can only match with String type [key: ${k}]`);
 		}
-		if (schema.required && !(k in object)) {
+
+		if (schema.required && objectKeys.indexOf(k) === -1) {
 			throw new Error(`missing required key ${k}`);
 		} else {
 			let value = object[k];
 			// sub filtering for Object type
-			if (schema.type === Object && schema.filter ) {
-				if ('_bsontype' in value && Object.keys(value).length < 3) {
+			if (schema.type === Object && schema.filter) {
+				const valueKeys = Object.keys(value);
+				// TODO: figure out how to do helper for MongoID type
+				if (valueKeys.indexOf('_bsontype') !== -1 && Object.keys(value).length < 3) {
 					// if Object value type is not matching (i.e. non populated mongodb object) we are returning undefined value
 					value = undefined;
 				} else {
@@ -93,7 +97,7 @@ const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
  * @param filter schema object which describes what to do with values in object
  * @return typed object or object array based on interface
  */
-export const filterObject = <T extends object>(object: object, filter: IFilter): T => {
+export const filterObject = <T extends object>(object: object, filter: IFilter): T | undefined => {
 	if (Array.isArray(object)) {
 		const outArray: any[] = [];
 		object.forEach((o) => {

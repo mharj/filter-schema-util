@@ -1,6 +1,6 @@
 {
   "name": "mharj-filter-schema-util",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Filter utility with schemas",
   "main": "dist/index.js",
   "scripts": {
