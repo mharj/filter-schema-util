@@ -41,6 +41,17 @@ describe('filter', () => {
 			const output = filterObject<ITest>({param1: '1', param2: '2', param3: '3', param4: '4', secret: 'stuff'}, filter);
 			expect(output).to.be.eql({param1: 1, param2: '2', param3: 3, param4: '4'});
 		});
+		it('basic string type filter', () => {
+			const filter: FilterBuilder<ITest> = {
+				param1: {type: 'int', required: true},
+				param2: {type: 'string', required: true},
+				param3: {type: 'float'},
+				param4: {type: 'string', required: true},
+				secret: {type: 'string', hidden: true},
+			};
+			const output = filterObject<ITest>({param1: '1', param2: '2', param3: '3.5', param4: '4', secret: 'stuff'}, filter);
+			expect(output).to.be.eql({param1: 1, param2: '2', param3: 3.5, param4: '4'});
+		});
 		it('array filter', () => {
 			const filter: FilterBuilder<IArrayTest> = {
 				names: [{type: String, required: true}],
@@ -157,6 +168,20 @@ describe('filter', () => {
 					filter,
 				),
 			).to.throw();
+		});
+		it('single to array conversion', () => {
+			const filter = {
+				objectClass: [{type: 'string'}],
+			};
+			const output = filterObject(
+				{
+					objectClass: 'posixAccount',
+				},
+				filter,
+			);
+			expect(output).to.be.eql({
+				objectClass: ['posixAccount'],
+			});
 		});
 	});
 });

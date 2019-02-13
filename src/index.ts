@@ -32,6 +32,15 @@ const doTypeConversions = (type: any, inValue: any) => {
 		if (type === String && typeof value === 'number') {
 			value = value.toString();
 		}
+		if (type === 'string' && typeof value === 'number' ) {
+			value = value.toString();
+		}
+		if (type === 'int' && typeof value === 'string' ) {
+			value = Number.parseInt(value, 10);
+		}
+		if (type === 'float' && typeof value === 'string' ) {
+			value = Number.parseFloat(value);
+		}
 	}
 	return value;
 };
@@ -86,6 +95,8 @@ const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
 						value = filterObject(value, schema.filter);
 					}
 				}
+			} else if (isArray && !Array.isArray(value)) { // value single => array if schema requires array
+				value = [value];
 			}
 			// attach default value if no value;
 			if (!value && schema.default !== undefined) {
