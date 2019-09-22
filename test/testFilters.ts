@@ -1,6 +1,7 @@
+import 'mocha';
+
 import {expect} from 'chai';
-import {describe, it} from 'mocha';
-import {FilterBuilder, filterObject} from '../src/index';
+import {filterSchema, IFilterSchema} from '../src/index';
 
 interface ITest {
 	param1: number;
@@ -8,6 +9,7 @@ interface ITest {
 	param3?: number;
 	param4: string;
 	secret: string;
+	isOk: boolean;
 }
 interface ITestSub {
 	name: string;
@@ -27,51 +29,142 @@ interface ITestArrayMain {
 interface IArrayTest {
 	names: string[];
 }
+let stringTestFilter: IFilterSchema<{value: string}>;
+let integerTestFilter: IFilterSchema<{value: number}>;
+let booleanTestFilter: IFilterSchema<{value: boolean}>;
+let objectTestFilter: IFilterSchema<{value: object}>;
+let dateTestFilter: IFilterSchema<{value: Date}>;
 
 describe('filter', () => {
-	describe('filterObject', () => {
-		it('basic filter', () => {
-			const filter: FilterBuilder<ITest> = {
-				param1: {type: Number, required: true},
-				param2: {type: String, required: true},
-				param3: {type: Number},
-				param4: {type: String, required: true},
-				secret: {type: String, hidden: true},
+	describe('filterConversions', () => {
+		before(() => {
+			stringTestFilter = {
+				value: {type: 'string', required: true},
 			};
-			const output = filterObject<ITest>({param1: '1', param2: '2', param3: '3', param4: '4', secret: 'stuff'}, filter);
-			expect(output).to.be.eql({param1: 1, param2: '2', param3: 3, param4: '4'});
+			integerTestFilter = {
+				value: {type: 'integer', required: true},
+			};
+			booleanTestFilter = {
+				value: {type: 'boolean', required: true},
+			};
+			objectTestFilter = {
+				value: {type: 'object', required: true},
+			};
+			dateTestFilter = {
+				value: {type: 'date', required: true},
+			};
 		});
+		it('should not convert null or undefined values', () => {
+			expect(filterSchema.bind({value: undefined}, stringTestFilter)).to.throw(TypeError);
+			expect(filterSchema.bind({value: null}, stringTestFilter)).to.throw(TypeError);
+		});
+		describe('filterConversions: string', () => {
+			it('string: number => string', () => {
+				expect(filterSchema({value: 1}, stringTestFilter)).to.be.eql({value: '1'});
+			});
+			it('string: boolean => string', () => {
+				expect(filterSchema({value: true}, stringTestFilter)).to.be.eql({value: 'true'});
+				expect(filterSchema({value: false}, stringTestFilter)).to.be.eql({value: 'false'});
+			});
+			it('string: object => throw TypeError', () => {
+				expect(filterSchema.bind({value: {}}, stringTestFilter)).to.throw(TypeError);
+			});
+		});
+		describe('filterConversions: integer', () => {
+			it('integer: string => integer', () => {
+				expect(filterSchema({value: '1'}, integerTestFilter)).to.be.eql({value: 1});
+			});
+			it('integer: float => integer', () => {
+				expect(filterSchema({value: 4.5}, integerTestFilter)).to.be.eql({value: 5});
+			});
+			it('integer: date => integer', () => {
+				expect(filterSchema({value: new Date(1569166591952)}, integerTestFilter)).to.be.eql({value: 1569166591952});
+			});
+		});
+		describe('filterConversions: boolean', () => {
+			it('boolean: 0 => boolean', () => {
+				expect(filterSchema({value: 0}, booleanTestFilter)).to.be.eql({value: false});
+			});
+			it('boolean: 1 => boolean', () => {
+				expect(filterSchema({value: 1}, booleanTestFilter)).to.be.eql({value: true});
+			});
+
+			it('boolean: "0" => boolean', () => {
+				expect(filterSchema({value: '0'}, booleanTestFilter)).to.be.eql({value: false});
+			});
+			it('boolean: "1" => boolean', () => {
+				expect(filterSchema({value: '1'}, booleanTestFilter)).to.be.eql({value: true});
+			});
+			it('boolean: "false" => boolean', () => {
+				expect(filterSchema({value: 'false'}, booleanTestFilter)).to.be.eql({value: false});
+			});
+			it('boolean: "true => boolean', () => {
+				expect(filterSchema({value: 'true'}, booleanTestFilter)).to.be.eql({value: true});
+			});
+			it('boolean: -1 => throw TypeError', () => {
+				expect(filterSchema.bind({value: -1}, booleanTestFilter)).to.throw(TypeError);
+			});
+		});
+		describe('filterConversions: object', () => {
+			it('object: string => object (JSON)', () => {
+				expect(filterSchema({value: '{}'}, objectTestFilter)).to.be.eql({value: {}});
+			});
+		});
+		describe('filterConversions: date', () => {
+			it('date: number => date', () => {
+				expect(filterSchema({value: 1569166591952}, dateTestFilter)).to.be.eql({value: new Date(1569166591952)});
+			});
+		});
+	});
+	describe('filterObject', () => {
 		it('basic string type filter', () => {
-			const filter: FilterBuilder<ITest> = {
-				param1: {type: 'int', required: true},
+			const filter: IFilterSchema<ITest> = {
+				isOk: {type: 'boolean', required: true},
+				param1: {type: 'integer', required: true},
 				param2: {type: 'string', required: true},
 				param3: {type: 'float'},
 				param4: {type: 'string', required: true},
 				secret: {type: 'string', hidden: true},
 			};
-			const output = filterObject<ITest>({param1: '1', param2: '2', param3: '3.5', param4: '4', secret: 'stuff'}, filter);
-			expect(output).to.be.eql({param1: 1, param2: '2', param3: 3.5, param4: '4'});
+			expect(filterSchema({param1: '1', param2: '2', param3: '3.5', param4: '4', secret: 'stuff', isOk: true}, filter)).to.be.eql({
+				isOk: true,
+				param1: 1,
+				param2: '2',
+				param3: 3.5,
+				param4: '4',
+			});
+			expect(filterSchema({param1: '1', param2: '2', param4: '4', secret: 'stuff', isOk: true}, filter)).to.be.eql({
+				isOk: true,
+				param1: 1,
+				param2: '2',
+				param4: '4',
+			});
 		});
 		it('array filter', () => {
-			const filter: FilterBuilder<IArrayTest> = {
-				names: [{type: String, required: true}],
+			const filter: IFilterSchema<IArrayTest> = {
+				names: [{type: 'string', required: true}],
 			};
-			const output = filterObject<IArrayTest>({names: ['test', 'test', 1]}, filter);
+			const output = filterSchema({names: ['test', 'test', 1]}, filter);
 			expect(output).to.be.eql({names: ['test', 'test', '1']});
 		});
 		it('sub filtering', () => {
-			const subFilter: FilterBuilder<ITestSub> = {
-				default: {type: Boolean, default: true},
-				name: {type: String, required: true},
-				secret: {type: String, hidden: true},
-				test: {type: Number, required: true},
+			const subFilter: IFilterSchema<ITestSub> = {
+				default: {type: 'boolean', default: true},
+				name: {type: 'string', required: true},
+				secret: {type: 'string', hidden: true},
+				test: {type: 'integer', required: false},
 			};
-			const filter: FilterBuilder<ITestMain> = {
-				sub: {type: Object, filter: subFilter},
+			const filter: IFilterSchema<ITestMain> = {
+				sub: {type: 'schema', filter: subFilter},
 			};
-			const output = filterObject<ITestMain>(
+			const output = filterSchema(
 				{
-					sub: {name: 'hello', test: '1', secret: 'stuff'},
+					sub: {
+						default: true,
+						name: 'hello',
+						secret: 'stuff',
+						test: '1',
+					},
 				},
 				filter,
 			);
@@ -80,37 +173,57 @@ describe('filter', () => {
 			});
 		});
 		it('sub filter array', () => {
-			const subFilter = {
-				name: {type: String, required: true},
+			const subFilter: IFilterSchema<ITestSub> = {
+				default: {type: 'boolean', default: true},
+				name: {type: 'string', required: true},
+				secret: {type: 'string', hidden: true},
+				test: {type: 'integer', required: false},
 			};
-			const filter: FilterBuilder<ITestArrayMain> = {
-				sub: [{type: Object, filter: subFilter}],
+			// sub: [{type: 'schema', filter: subFilter}],
+			const filter: IFilterSchema<ITestArrayMain> = {
+				sub: [{type: 'schema', filter: subFilter}],
 			};
-			const output = filterObject<ITestArrayMain>(
+			const output = filterSchema(
 				{
-					sub: [{name: 'hello'}, {name: 1}],
+					sub: [
+						{
+							default: true,
+							name: 'hello',
+							secret: 'stuff',
+							test: '1',
+						},
+						{
+							default: true,
+							name: 'hello',
+							secret: 'stuff',
+							test: '1',
+						},
+					],
 				},
 				filter,
 			);
 			expect(output).to.be.eql({
-				sub: [{name: 'hello'}, {name: '1'}],
+				sub: [{name: 'hello', test: 1, default: true}, {name: 'hello', test: 1, default: true}],
 			});
 		});
 		it('match testing', () => {
-			const filter = {
-				test: {type: String, match: new RegExp(/^a/)},
+			const filter: IFilterSchema<{test: string}> = {
+				test: {type: 'string', match: new RegExp(/^a/)},
 			};
-			expect(filterObject({test: 'abc'}, filter)).to.be.eql({test: 'abc'});
-			expect(filterObject.bind({test: 'qwe'}, filter)).to.throw();
+			expect(filterSchema({test: 'abc'}, filter)).to.be.eql({test: 'abc'});
+			expect(filterSchema.bind({test: 'qwe'}, filter)).to.throw();
 		});
 		it('sub filtering without solving', () => {
-			const subFilter: FilterBuilder<{name: true}> = {
-				name: {type: String},
+			const subFilter: IFilterSchema<ITestSub> = {
+				default: {type: 'boolean', default: true},
+				name: {type: 'string', required: true},
+				secret: {type: 'string', hidden: true},
+				test: {type: 'integer', required: false},
 			};
-			const filter: FilterBuilder<ITestMain> = {
-				sub: {type: Object, filter: subFilter},
+			const filter: IFilterSchema<ITestMain> = {
+				sub: {type: 'schema', filter: subFilter},
 			};
-			const output = filterObject<ITestMain>(
+			const output = filterSchema(
 				{
 					sub: {id: 'test', _bsontype: 'ObjectID'},
 				},
@@ -121,14 +234,17 @@ describe('filter', () => {
 			});
 		});
 		it('sub filtering with required solving', () => {
-			const subFilter: FilterBuilder<{name: true}> = {
-				name: {type: String, required: true},
+			const subFilter: IFilterSchema<ITestSub> = {
+				default: {type: 'boolean', default: true},
+				name: {type: 'string', required: true},
+				secret: {type: 'string', hidden: true},
+				test: {type: 'integer', required: false},
 			};
-			const filter: FilterBuilder<ITestMain> = {
-				sub: {type: Object, filter: subFilter, required: true},
+			const filter: IFilterSchema<ITestMain> = {
+				sub: {type: 'schema', filter: subFilter, required: true},
 			};
 			expect(
-				filterObject.bind(
+				filterSchema.bind(
 					{
 						sub: {id: 'test', _bsontype: 'ObjectID'},
 					},
@@ -137,31 +253,37 @@ describe('filter', () => {
 			).to.throw();
 		});
 		it('sub filtering array without solving', () => {
-			const subFilter: FilterBuilder<{name: true}> = {
-				name: {type: String},
+			const subFilter: IFilterSchema<ITestSub> = {
+				default: {type: 'boolean', default: true},
+				name: {type: 'string', required: true},
+				secret: {type: 'string', hidden: true},
+				test: {type: 'integer', required: false},
 			};
-			const filter: FilterBuilder<ITestMain> = {
-				sub: [{type: Object, filter: subFilter}],
+			const filter: IFilterSchema<ITestArrayMain> = {
+				sub: [{type: 'schema', filter: subFilter}],
 			};
-			const output = filterObject<ITestMain>(
+			const output = filterSchema(
 				{
 					sub: [{id: 'test', _bsontype: 'ObjectID'}],
 				},
 				filter,
 			);
 			expect(output).to.be.eql({
-				sub: undefined,
+				sub: [],
 			});
 		});
 		it('sub filtering array with required solving', () => {
-			const subFilter: FilterBuilder<{name: true}> = {
-				name: {type: String, required: true},
+			const subFilter: IFilterSchema<ITestSub> = {
+				default: {type: 'boolean', default: true},
+				name: {type: 'string', required: true},
+				secret: {type: 'string', hidden: true},
+				test: {type: 'integer', required: false},
 			};
-			const filter: FilterBuilder<ITestMain> = {
-				sub: [{type: Object, filter: subFilter, required: true}],
+			const filter: IFilterSchema<ITestArrayMain> = {
+				sub: [{type: 'schema', filter: subFilter, required: true}],
 			};
 			expect(
-				filterObject.bind(
+				filterSchema.bind(
 					{
 						sub: [{id: 'test', _bsontype: 'ObjectID'}],
 					},
@@ -170,10 +292,24 @@ describe('filter', () => {
 			).to.throw();
 		});
 		it('single to array conversion', () => {
-			const filter = {
+			const filter: IFilterSchema<{objectClass: string[]}> = {
 				objectClass: [{type: 'string'}],
 			};
-			const output = filterObject(
+			const output = filterSchema(
+				{
+					objectClass: 'posixAccount',
+				},
+				filter,
+			);
+			expect(output).to.be.eql({
+				objectClass: ['posixAccount'],
+			});
+		});
+		it('single to array conversion', () => {
+			const filter: IFilterSchema<{objectClass: string[]}> = {
+				objectClass: [{type: 'string'}],
+			};
+			const output = filterSchema(
 				{
 					objectClass: 'posixAccount',
 				},

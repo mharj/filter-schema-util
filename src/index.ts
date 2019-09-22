@@ -1,152 +1,324 @@
-// Schema type
-interface IFilterSchema {
-	type: any;
+type SchemaKey = 'integer' | 'float' | 'string' | 'object' | 'date' | 'boolean' | 'schema';
+// IE polyfill
+const NumberIsInteger = (value: number) => {
+	return typeof value === 'number' && isFinite(value) && Math.floor(value) === value;
+};
+Number.isInteger = Number.isInteger || NumberIsInteger;
+
+interface ISchemaKeyCommon<S extends SchemaKey> {
+	type: S;
 	required?: boolean;
-	hidden?: true;
-	default?: any;
-	filter?: IFilter;
+	hidden?: boolean;
+	[index: string]: any;
+}
+interface IRequired {
+	required: true;
+}
+interface INotRequired {
+	required?: false;
+}
+
+interface ISchemaKeySchemaType<S extends SchemaKey> extends ISchemaKeyCommon<S> {
+	filter: IFilterSchema<any>;
+}
+
+interface ISchemaKeyStringType<S extends SchemaKey> extends ISchemaKeyCommon<'string'> {
 	match?: RegExp;
 }
 
-// Filter type
-export interface IFilter {
-	[key: string]: IFilterSchema | IFilterSchema[];
+interface ISchemaKeyNumber<T> extends ISchemaKeyCommon<'float' | 'integer'> {
+	type: T extends number ? ('float' | 'integer') : never;
+}
+interface ISchemaKeyNumberArray<T> extends ISchemaKeyCommon<'float' | 'integer'> {
+	type: T extends number[] ? ('float' | 'integer') : never;
 }
 
-// Type to control schema building
-export type FilterBuilder<C> = {[P in keyof C]-?: IFilterSchema | IFilterSchema[]};
+interface ISchemaKeyString<T> extends ISchemaKeyStringType<'string'> {
+	type: T extends string ? 'string' : never;
+}
+interface ISchemaKeyStringArray<T> extends ISchemaKeyStringType<'string'> {
+	type: T extends string[] ? 'string' : never;
+}
+
+interface ISchemaKeyObject<T> extends ISchemaKeyCommon<'object'> {
+	type: T extends object ? 'object' : never;
+}
+interface ISchemaKeyObjectArray<T> extends ISchemaKeyCommon<'object'> {
+	type: T extends object ? 'object' : never;
+}
+
+interface ISchemaKeyDate<T> extends ISchemaKeyCommon<'date'> {
+	type: T extends Date ? 'date' : never;
+}
+interface ISchemaKeyDateArray<T> extends ISchemaKeyCommon<'date'> {
+	type: T extends Date[] ? 'date' : never;
+}
+
+interface ISchemaKeyBoolean<T> extends ISchemaKeyCommon<'boolean'> {
+	type: T extends boolean ? 'boolean' : never;
+}
+interface ISchemaKeyBooleanArray<T> extends ISchemaKeyCommon<'boolean'> {
+	type: T extends boolean[] ? 'boolean' : never;
+}
+
+interface ISchemaKeyFilterSchema<T> extends ISchemaKeySchemaType<'schema'> {
+	type: T extends object ? 'schema' : never;
+}
+
+interface ISchemaKeyFilterSchemaArray<T> extends ISchemaKeySchemaType<'schema'> {
+	type: T extends object[] ? 'schema' : never;
+}
+
+interface IStringIndexSignature {
+	[index: string]: any;
+}
 
 /**
- * Type conversion function
- * @param type is required type
- * @param inValue value to be fixed if there is need.
+ * get only optional properties
  */
-const doTypeConversions = (type: any, inValue: any) => {
-	let value = inValue;
-	if (Array.isArray(inValue)) {
-		value = inValue.map((v) => doTypeConversions(type, v));
+type OptionalPropertyOf<T extends object> = Pick<
+	T,
+	Exclude<
+		{
+			[K in keyof T]: T extends Record<K, T[K]> ? never : K;
+		}[keyof T],
+		undefined
+	>
+>;
+/**
+ * get only required properties
+ */
+
+type RequirePropertyOf<T extends object> = Pick<
+	T,
+	Exclude<
+		{
+			[K in keyof T]: T extends Record<K, T[K]> ? K : never;
+		}[keyof T],
+		undefined
+	>
+>;
+
+type SchemaArrayKeys<T> =
+	| ISchemaKeyFilterSchemaArray<T>
+	| ISchemaKeyObjectArray<T>
+	| ISchemaKeyNumberArray<T>
+	| ISchemaKeyStringArray<T>
+	| ISchemaKeyDateArray<T>
+	| ISchemaKeyBooleanArray<T>;
+
+export type IncludeTypes<T, D> = Pick<
+	T,
+	Exclude<
+		{
+			[K in keyof T]: T[K] extends D ? K : never;
+		}[keyof T],
+		undefined
+	>
+>;
+
+export type ExcludeTypes<T, D> = Pick<
+	T,
+	Exclude<
+		{
+			[K in keyof T]: T[K] extends D ? never : K;
+		}[keyof T],
+		undefined
+	>
+>;
+
+type SchemaKeys<T> = ISchemaKeyFilterSchema<T> | ISchemaKeyObject<T> | ISchemaKeyNumber<T> | ISchemaKeyString<T> | ISchemaKeyDate<T> | ISchemaKeyBoolean<T>;
+
+type IFilterSchemaBase<T extends object, R extends IRequired | INotRequired> = IStringIndexSignature &
+	{
+		[K in Extract<keyof T, string>]: (T[K] extends any[] ? Array<SchemaArrayKeys<T[K]>> : SchemaKeys<T[K]>) & R;
+	};
+
+export type IFilterSchema<T extends object> = IFilterSchemaBase<RequirePropertyOf<T>, IRequired> | IFilterSchemaBase<OptionalPropertyOf<T>, INotRequired>;
+
+const convert = (targetType: string, sourceValue: any | any[]): any | any[] => {
+	let targetValue = sourceValue;
+	if (Array.isArray(sourceValue)) {
+		targetValue = sourceValue.map((d) => convert(targetType, d));
 	} else {
-		if (type === Number && typeof value === 'string') {
-			value = Number.parseFloat(value);
+		if (sourceValue === undefined || sourceValue === null) {
+			throw new TypeError('trying to convert empty data');
 		}
-		if (type === String && typeof value === 'number') {
-			value = value.toString();
-		}
-		if (type === 'string' && typeof value === 'number' ) {
-			value = value.toString();
-		}
-		if (type === 'int' && typeof value === 'string' ) {
-			value = Number.parseInt(value, 10);
-		}
-		if (type === 'float' && typeof value === 'string' ) {
-			value = Number.parseFloat(value);
+		const sourceType = typeof sourceValue;
+		switch (targetType) {
+			case 'integer': {
+				if (sourceType !== 'number' || !Number.isInteger(sourceValue)) {
+					switch (sourceType) {
+						case 'string':
+							targetValue = parseInt(sourceValue, 10);
+							break;
+						case 'number':
+							targetValue = Math.round(sourceValue);
+							break;
+						case 'object': {
+							if (sourceValue instanceof Date) {
+								targetValue = sourceValue.getTime();
+								break;
+							}
+						}
+						default:
+							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
+					}
+				}
+				break;
+			}
+			case 'float': {
+				if (sourceType !== 'number') {
+					switch (sourceType) {
+						case 'string':
+							targetValue = parseFloat(sourceValue);
+							break;
+						default:
+							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
+					}
+				}
+				break;
+			}
+			case 'boolean': {
+				if (sourceType !== 'boolean') {
+					switch (sourceType) {
+						case 'string': {
+							if (sourceValue === 'true' || sourceValue === '1') {
+								targetValue = true;
+								break;
+							}
+							if (sourceValue === 'false' || sourceValue === '0') {
+								targetValue = false;
+								break;
+							}
+							throw new TypeError(`can\'t convert value ${sourceValue} => ${targetType}`);
+						}
+						case 'number': {
+							if (sourceValue === 1) {
+								targetValue = true;
+								break;
+							}
+							if (sourceValue === 0) {
+								targetValue = false;
+								break;
+							}
+							throw new TypeError(`can\'t convert value ${sourceValue} => ${targetType}`);
+						}
+						default:
+							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
+					}
+				}
+				break;
+			}
+			case 'date': {
+				if (sourceType !== 'object' && !(sourceValue instanceof Date)) {
+					switch (sourceType) {
+						case 'number':
+							targetValue = new Date(sourceValue);
+							break;
+						default:
+							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
+					}
+				}
+				break;
+			}
+			case 'string': {
+				if (sourceType !== 'string') {
+					switch (sourceType) {
+						case 'number':
+							targetValue = '' + sourceValue;
+							break;
+						case 'boolean':
+							targetValue = sourceValue ? 'true' : 'false';
+							break;
+						default:
+							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
+					}
+				}
+				break;
+			}
+			case 'object': {
+				if (sourceType !== 'object') {
+					switch (sourceType) {
+						case 'string':
+							targetValue = JSON.parse(sourceValue);
+							break;
+						default:
+							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
+					}
+				}
+				break;
+			}
+			case 'schema': {
+				if (sourceType !== 'object') {
+					switch (sourceType) {
+						default:
+							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
+					}
+				}
+				break;
+			}
+			default:
+				throw new TypeError(`unknown targetType ${targetType}`);
 		}
 	}
-	return value;
+	return targetValue;
 };
 
-const isMongoDBId = (value: object): boolean => {
-	const valueKeys = Object.keys(value);
-	return valueKeys.indexOf('_bsontype') !== -1 && Object.keys(value).length < 3;
-};
-
-/**
- * Filtering function
- * @param object to filter
- * @param filter schema object
- */
-const doFilterRequirementKeys = <T>(object: object, filter: IFilter): T => {
-	const objectKeys = Object.keys(object);
-	const out = {};
-	Object.keys(filter).forEach((k) => {
-		let isArray = false;
-		let schema = filter[k] as IFilterSchema;
-		if (Array.isArray(schema)) {
-			schema = schema[0] as IFilterSchema;
-			isArray = true;
-		}
-		if (schema.type !== String && schema.match) {
-			throw new Error(`Can only match with String type [key: ${k}]`);
-		}
-
-		if (schema.required && objectKeys.indexOf(k) === -1) {
-			throw new Error(`missing required key ${k}`);
+const handlefilter = <T extends IStringIndexSignature | IStringIndexSignature[]>(data: object, filter: IFilterSchema<T>, required?: boolean) => {
+	if (required) {
+		if (Array.isArray(data)) {
+			return filterSchemaArray(data, filter);
 		} else {
-			let value = object[k];
-			// sub filtering for Object type
-			if (schema.type === Object && schema.filter) {
-				// TODO: figure out how to do helper for MongoID type
-				if (isArray) {
-					if (value.length > 0) {
-						if (isMongoDBId(value[0])) {
-							// if Object value type is not matching (i.e. non populated mongodb object) we are returning undefined value
-							value = undefined;
-						} else {
-							value = filterObjectArray(value, schema.filter);
-						}
-					} else {
-						value = filterObjectArray(value, schema.filter);
-					}
-				} else {
-					if (isMongoDBId(value)) {
-						// if Object value type is not matching (i.e. non populated mongodb object) we are returning undefined value
-						value = undefined;
-					} else {
-						value = filterObject(value, schema.filter);
-					}
-				}
-			} else if (isArray && !Array.isArray(value)) { // value single => array if schema requires array
-				value = [value];
+			return filterSchema(data, filter);
+		}
+	} else {
+		// if it's not requied and we are failing to filter, we just return empty data
+		if (Array.isArray(data)) {
+			try {
+				return filterSchemaArray(data, filter);
+			} catch (err) {
+				return [];
 			}
-			// attach default value if no value;
-			if (!value && schema.default !== undefined) {
-				value = schema.default;
+		} else {
+			try {
+				return filterSchema(data, filter);
+			} catch (err) {
+				return undefined;
 			}
-			// do match
-			if (schema.match) {
-				if (!value.match(schema.match)) {
-					throw new Error(`value '${value}' does not match to key: '${k}' in regular expression match`);
-				}
-			}
-			if (!schema.hidden) {
-				out[k] = doTypeConversions(schema.type, value);
-			}
+		}
+	}
+};
+
+export const filterSchema = <T extends IStringIndexSignature>(data: object, filter: IFilterSchema<T>) => {
+	const out: any = {};
+	Object.keys(filter).forEach((key) => {
+		let isArray = false;
+		let sk: SchemaKeys<T>;
+		if (Array.isArray(filter[key])) {
+			isArray = true;
+			sk = filter[key][0] as SchemaKeys<T>;
+		} else {
+			sk = filter[key] as SchemaKeys<T>;
+		}
+		let value = data[key] as any;
+		if (isArray === true && !Array.isArray(value)) {
+			// if we expect array and it's not, we nicely upgrade to array value
+			value = [value];
+		}
+		if (isArray === false && Array.isArray(value)) {
+			throw new TypeError(`data for ${key} should not be array`);
+		}
+		if (sk.required && sk.required === true && !(key in data)) {
+			throw new TypeError(`key ${key} is required`);
+		}
+		if (key in data && !(sk.hidden && sk.hidden === true)) {
+			out[key] = sk.type === 'schema' ? handlefilter(value, sk.filter, sk.required) : convert(sk.type, value);
 		}
 	});
 	return out as T;
 };
 
-/**
- * Filter object or objects
- * @param object to filter
- * @param filter schema object which describes what to do with values in object
- * @return typed object or object array based on interface
- */
-export const filterObject = <T extends object>(object: object, filter: IFilter): T | undefined => {
-	if (Array.isArray(object)) {
-		const outArray: any[] = [];
-		object.forEach((o) => {
-			outArray.push(filterObject(o, filter));
-		});
-		return outArray as T;
-	} else {
-		return doFilterRequirementKeys<T>(object, filter);
-	}
-};
-
-/**
- * Filter objects
- * @param object to filter
- * @param filter schema object which describes what to do with values in object
- * @return typed object array based on interface
- */
-export const filterObjectArray = <T extends object>(objects: object[], filter: IFilter): T[] => {
-	const outArray: T[] = [];
-	objects.forEach((object) => {
-		const data = filterObject<T>(object, filter);
-		if (data) {
-			outArray.push(data);
-		}
-	});
-	return outArray as T[];
+export const filterSchemaArray = <T extends IStringIndexSignature[]>(dataArray: object[], filter: IFilterSchema<T>) => {
+	return dataArray.map((e) => filterSchema<T>(e, filter));
 };
