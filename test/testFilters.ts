@@ -8,7 +8,7 @@ interface ITest {
 	param2: string;
 	param3?: number;
 	param4: string;
-	secret: string;
+	secret?: string;
 	isOk: boolean;
 }
 interface ITestSub {
@@ -30,12 +30,22 @@ interface IArrayTest {
 	names: string[];
 }
 let stringTestFilter: IFilterSchema<{value: string}>;
+let stringUpperTestFilter: IFilterSchema<{value: string}>;
+let stringLowerTestFilter: IFilterSchema<{value: string}>;
 let integerTestFilter: IFilterSchema<{value: number}>;
 let booleanTestFilter: IFilterSchema<{value: boolean}>;
 let objectTestFilter: IFilterSchema<{value: object}>;
 let dateTestFilter: IFilterSchema<{value: Date}>;
 
 describe('filter', () => {
+	describe('typeTestinig', () => {
+		it('check hidden type', () => {
+			const hiddenTest1: IFilterSchema<{value?: string}> = {value: {type: 'string'}};
+			expect(filterSchema({value: '1'}, hiddenTest1)).to.be.eql({value: '1'});
+			const hiddenTest2: IFilterSchema<{value: number}> = {value: {type: 'integer', required: true}};
+			expect(filterSchema({value: '1'}, hiddenTest2)).to.be.eql({value: 1});
+		});
+	});
 	describe('filterConversions', () => {
 		before(() => {
 			stringTestFilter = {
@@ -53,6 +63,12 @@ describe('filter', () => {
 			dateTestFilter = {
 				value: {type: 'date', required: true},
 			};
+			stringUpperTestFilter = {
+				value: {type: 'string', required: true, forceCase: 'upper'},
+			};
+			stringLowerTestFilter = {
+				value: {type: 'string', required: true, forceCase: 'lower'},
+			};
 		});
 		it('should not convert null or undefined values', () => {
 			expect(filterSchema.bind({value: undefined}, stringTestFilter)).to.throw(TypeError);
@@ -68,6 +84,12 @@ describe('filter', () => {
 			});
 			it('string: object => throw TypeError', () => {
 				expect(filterSchema.bind({value: {}}, stringTestFilter)).to.throw(TypeError);
+			});
+			it('string: string => STRING', () => {
+				expect(filterSchema({value: 'upper'}, stringUpperTestFilter)).to.be.eql({value: 'UPPER'});
+			});
+			it('string: STRING => string', () => {
+				expect(filterSchema({value: 'LOWER'}, stringLowerTestFilter)).to.be.eql({value: 'lower'});
 			});
 		});
 		describe('filterConversions: integer', () => {
@@ -149,13 +171,13 @@ describe('filter', () => {
 		});
 		it('sub filtering', () => {
 			const subFilter: IFilterSchema<ITestSub> = {
-				default: {type: 'boolean', default: true},
+				default: {type: 'boolean', required: true, default: true},
 				name: {type: 'string', required: true},
-				secret: {type: 'string', hidden: true},
+				secret: {type: 'string', required: true, hidden: true},
 				test: {type: 'integer', required: false},
 			};
 			const filter: IFilterSchema<ITestMain> = {
-				sub: {type: 'schema', filter: subFilter},
+				sub: {type: 'schema', required: true, filter: subFilter},
 			};
 			const output = filterSchema(
 				{
@@ -174,14 +196,14 @@ describe('filter', () => {
 		});
 		it('sub filter array', () => {
 			const subFilter: IFilterSchema<ITestSub> = {
-				default: {type: 'boolean', default: true},
+				default: {type: 'boolean', default: true, required: true},
 				name: {type: 'string', required: true},
-				secret: {type: 'string', hidden: true},
+				secret: {type: 'string', required: true, hidden: true},
 				test: {type: 'integer', required: false},
 			};
 			// sub: [{type: 'schema', filter: subFilter}],
 			const filter: IFilterSchema<ITestArrayMain> = {
-				sub: [{type: 'schema', filter: subFilter}],
+				sub: [{type: 'schema', required: true, filter: subFilter}],
 			};
 			const output = filterSchema(
 				{
@@ -208,36 +230,36 @@ describe('filter', () => {
 		});
 		it('match testing', () => {
 			const filter: IFilterSchema<{test: string}> = {
-				test: {type: 'string', match: new RegExp(/^a/)},
+				test: {type: 'string', required: true, match: new RegExp(/^a/)},
 			};
 			expect(filterSchema({test: 'abc'}, filter)).to.be.eql({test: 'abc'});
 			expect(filterSchema.bind({test: 'qwe'}, filter)).to.throw();
 		});
 		it('sub filtering without solving', () => {
 			const subFilter: IFilterSchema<ITestSub> = {
-				default: {type: 'boolean', default: true},
+				default: {type: 'boolean', required: true, default: true},
 				name: {type: 'string', required: true},
-				secret: {type: 'string', hidden: true},
+				secret: {type: 'string', required: true, hidden: true},
 				test: {type: 'integer', required: false},
 			};
 			const filter: IFilterSchema<ITestMain> = {
-				sub: {type: 'schema', filter: subFilter},
+				sub: {type: 'schema', required: true, filter: subFilter},
 			};
 			const output = filterSchema(
 				{
-					sub: {id: 'test', _bsontype: 'ObjectID'},
+					sub: {id: 'test', _bsontype: 'ObjectID', name: 'test', secret: 'super', test: 666},
 				},
 				filter,
 			);
 			expect(output).to.be.eql({
-				sub: undefined,
+				sub: {default: true, name: 'test', test: 666},
 			});
 		});
 		it('sub filtering with required solving', () => {
 			const subFilter: IFilterSchema<ITestSub> = {
-				default: {type: 'boolean', default: true},
+				default: {type: 'boolean', required: true, default: true},
 				name: {type: 'string', required: true},
-				secret: {type: 'string', hidden: true},
+				secret: {type: 'string', required: true, hidden: true},
 				test: {type: 'integer', required: false},
 			};
 			const filter: IFilterSchema<ITestMain> = {
@@ -254,29 +276,29 @@ describe('filter', () => {
 		});
 		it('sub filtering array without solving', () => {
 			const subFilter: IFilterSchema<ITestSub> = {
-				default: {type: 'boolean', default: true},
+				default: {type: 'boolean', required: true, default: true},
 				name: {type: 'string', required: true},
-				secret: {type: 'string', hidden: true},
+				secret: {type: 'string', required: true, hidden: true},
 				test: {type: 'integer', required: false},
 			};
 			const filter: IFilterSchema<ITestArrayMain> = {
-				sub: [{type: 'schema', filter: subFilter}],
+				sub: [{type: 'schema', required: true, filter: subFilter}],
 			};
 			const output = filterSchema(
 				{
-					sub: [{id: 'test', _bsontype: 'ObjectID'}],
+					sub: [{id: 'test', _bsontype: 'ObjectID', name: 'test', secret: 'super', test: 666}],
 				},
 				filter,
 			);
 			expect(output).to.be.eql({
-				sub: [],
+				sub: [{default: true, name: 'test', test: 666}],
 			});
 		});
 		it('sub filtering array with required solving', () => {
 			const subFilter: IFilterSchema<ITestSub> = {
-				default: {type: 'boolean', default: true},
+				default: {type: 'boolean', required: true, default: true},
 				name: {type: 'string', required: true},
-				secret: {type: 'string', hidden: true},
+				secret: {type: 'string', required: true, hidden: true},
 				test: {type: 'integer', required: false},
 			};
 			const filter: IFilterSchema<ITestArrayMain> = {
@@ -293,21 +315,7 @@ describe('filter', () => {
 		});
 		it('single to array conversion', () => {
 			const filter: IFilterSchema<{objectClass: string[]}> = {
-				objectClass: [{type: 'string'}],
-			};
-			const output = filterSchema(
-				{
-					objectClass: 'posixAccount',
-				},
-				filter,
-			);
-			expect(output).to.be.eql({
-				objectClass: ['posixAccount'],
-			});
-		});
-		it('single to array conversion', () => {
-			const filter: IFilterSchema<{objectClass: string[]}> = {
-				objectClass: [{type: 'string'}],
+				objectClass: [{type: 'string', required: true}],
 			};
 			const output = filterSchema(
 				{

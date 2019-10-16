@@ -1,19 +1,13 @@
 # filter-schema-util
+
 Schema type filtering utility
 
-Simple usage
-```typescript
-interface IUser {
-	_id?: number;
-	email: string;
-	passwordHash?: number;
-}
+Usage check examples,
 
-const userFilter: FilterBuilder<IUser> = {
-	_id: {type: String},
-	email: {type: String, required: true},
-	passwordHash: {type: String, hidden: true},
-};
+[example1.ts](./example/example1.ts)
 
-const output = filterObject<IUser>(req.body, userFilter);
-```
+[example2.ts](./example/example2.ts)
+
+or unit tests
+
+[testFilters.ts](./test/testFilters.ts)

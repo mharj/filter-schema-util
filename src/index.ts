@@ -5,69 +5,104 @@ const NumberIsInteger = (value: number) => {
 };
 Number.isInteger = Number.isInteger || NumberIsInteger;
 
-interface ISchemaKeyCommon<S extends SchemaKey> {
-	type: S;
-	required?: boolean;
-	hidden?: boolean;
-	[index: string]: any;
+type TypedObjectValues = undefined | null | Error | string | number | Date | boolean | ITypedObject;
+
+interface ITypedObject {
+	[index: string]: TypedObjectValues;
 }
+
 interface IRequired {
 	required: true;
+	hidden?: boolean;
+	default?: any;
 }
 interface INotRequired {
 	required?: false;
+	hidden?: boolean;
+	default?: any;
 }
 
-interface ISchemaKeySchemaType<S extends SchemaKey> extends ISchemaKeyCommon<S> {
+interface ISchemaKeySchemaType<S extends SchemaKey> {
+	type: S;
 	filter: IFilterSchema<any>;
 }
 
-interface ISchemaKeyStringType<S extends SchemaKey> extends ISchemaKeyCommon<'string'> {
+interface ISchemaKeyStringType<S extends SchemaKey> {
+	type: S;
 	match?: RegExp;
+	forceCase?: 'upper' | 'lower';
 }
 
-interface ISchemaKeyNumber<T> extends ISchemaKeyCommon<'float' | 'integer'> {
-	type: T extends number ? ('float' | 'integer') : never;
-}
-interface ISchemaKeyNumberArray<T> extends ISchemaKeyCommon<'float' | 'integer'> {
-	type: T extends number[] ? ('float' | 'integer') : never;
+interface ISchemaKeyNumberType<S extends SchemaKey> {
+	type: S;
 }
 
-interface ISchemaKeyString<T> extends ISchemaKeyStringType<'string'> {
+interface ISchemaKeyObjectType<S extends SchemaKey> {
+	type: S;
+}
+
+interface ISchemaKeyDateType<S extends SchemaKey> {
+	type: S;
+}
+
+interface ISchemaKeyBooleanType<S extends SchemaKey> {
+	type: S;
+	default?: boolean;
+}
+
+interface ISchemaKeyInteger<T = TypedObjectValues> extends ISchemaKeyNumberType<'integer'> {
+	type: T extends number ? 'integer' : never;
+}
+interface ISchemaKeyIntegerArray<T = TypedObjectValues> extends ISchemaKeyNumberType<'integer'> {
+	type: T extends number[] ? 'integer' : never;
+}
+interface ISchemaKeyFloat<T = TypedObjectValues> extends ISchemaKeyNumberType<'float'> {
+	type: T extends number ? 'float' : never;
+}
+interface ISchemaKeyFloatArray<T = TypedObjectValues> extends ISchemaKeyNumberType<'float'> {
+	type: T extends number[] ? 'float' : never;
+}
+
+interface ISchemaKeyString<T = TypedObjectValues> extends ISchemaKeyStringType<'string'> {
 	type: T extends string ? 'string' : never;
 }
-interface ISchemaKeyStringArray<T> extends ISchemaKeyStringType<'string'> {
+interface ISchemaKeyStringArray<T = TypedObjectValues> extends ISchemaKeyStringType<'string'> {
 	type: T extends string[] ? 'string' : never;
 }
 
-interface ISchemaKeyObject<T> extends ISchemaKeyCommon<'object'> {
+interface ISchemaKeyObject<T = TypedObjectValues> extends ISchemaKeyObjectType<'object'> {
 	type: T extends object ? 'object' : never;
 }
-interface ISchemaKeyObjectArray<T> extends ISchemaKeyCommon<'object'> {
+interface ISchemaKeyObjectArray<T = TypedObjectValues> extends ISchemaKeyObjectType<'object'> {
 	type: T extends object ? 'object' : never;
 }
-
-interface ISchemaKeyDate<T> extends ISchemaKeyCommon<'date'> {
+interface ISchemaKeyDate<T = TypedObjectValues> extends ISchemaKeyDateType<'date'> {
 	type: T extends Date ? 'date' : never;
 }
-interface ISchemaKeyDateArray<T> extends ISchemaKeyCommon<'date'> {
+interface ISchemaKeyDateArray<T = TypedObjectValues> extends ISchemaKeyDateType<'date'> {
 	type: T extends Date[] ? 'date' : never;
 }
 
-interface ISchemaKeyBoolean<T> extends ISchemaKeyCommon<'boolean'> {
+interface ISchemaKeyBoolean<T = TypedObjectValues> extends ISchemaKeyBooleanType<'boolean'> {
 	type: T extends boolean ? 'boolean' : never;
 }
-interface ISchemaKeyBooleanArray<T> extends ISchemaKeyCommon<'boolean'> {
+interface ISchemaKeyBooleanArray<T = TypedObjectValues> extends ISchemaKeyBooleanType<'boolean'> {
 	type: T extends boolean[] ? 'boolean' : never;
 }
 
-interface ISchemaKeyFilterSchema<T> extends ISchemaKeySchemaType<'schema'> {
+interface ISchemaKeyFilterSchema<T = TypedObjectValues> extends ISchemaKeySchemaType<'schema'> {
 	type: T extends object ? 'schema' : never;
 }
 
-interface ISchemaKeyFilterSchemaArray<T> extends ISchemaKeySchemaType<'schema'> {
+interface ISchemaKeyFilterSchemaArray<T = TypedObjectValues> extends ISchemaKeySchemaType<'schema'> {
 	type: T extends object[] ? 'schema' : never;
 }
+const isSchemaFilterKey = <T extends TypedObjectValues>(key: SchemaKeys<T>): key is ISchemaKeyFilterSchema<T> => {
+	return key.type === 'schema';
+};
+const isStringFilterKey = <T extends TypedObjectValues>(key: SchemaKeys<T>): key is ISchemaKeyString<T> => {
+	return key.type === 'string';
+};
 
 interface IStringIndexSignature {
 	[index: string]: any;
@@ -98,15 +133,6 @@ type RequirePropertyOf<T extends object> = Pick<
 		undefined
 	>
 >;
-
-type SchemaArrayKeys<T> =
-	| ISchemaKeyFilterSchemaArray<T>
-	| ISchemaKeyObjectArray<T>
-	| ISchemaKeyNumberArray<T>
-	| ISchemaKeyStringArray<T>
-	| ISchemaKeyDateArray<T>
-	| ISchemaKeyBooleanArray<T>;
-
 export type IncludeTypes<T, D> = Pick<
 	T,
 	Exclude<
@@ -126,20 +152,36 @@ export type ExcludeTypes<T, D> = Pick<
 		undefined
 	>
 >;
+type SchemaArrayKeys<T> =
+	| ISchemaKeyFilterSchemaArray<T>
+	| ISchemaKeyObjectArray<T>
+	| ISchemaKeyIntegerArray<T>
+	| ISchemaKeyFloatArray<T>
+	| ISchemaKeyStringArray<T>
+	| ISchemaKeyDateArray<T>
+	| ISchemaKeyBooleanArray<T>;
 
-type SchemaKeys<T> = ISchemaKeyFilterSchema<T> | ISchemaKeyObject<T> | ISchemaKeyNumber<T> | ISchemaKeyString<T> | ISchemaKeyDate<T> | ISchemaKeyBoolean<T>;
+type SchemaKeys<T extends TypedObjectValues> =
+	| ISchemaKeyInteger<T>
+	| ISchemaKeyFloat<T>
+	| ISchemaKeyFilterSchema<T>
+	| ISchemaKeyObject<T>
+	| ISchemaKeyString<T>
+	| ISchemaKeyDate<T>
+	| ISchemaKeyBoolean<T>;
 
-type IFilterSchemaBase<T extends object, R extends IRequired | INotRequired> = IStringIndexSignature &
+type IFilterSchemaBase<T extends ITypedObject, R extends IRequired | INotRequired> = IStringIndexSignature &
 	{
-		[K in Extract<keyof T, string>]: (T[K] extends any[] ? Array<SchemaArrayKeys<T[K]>> : SchemaKeys<T[K]>) & R;
+		[K in Extract<keyof T, string>]: (T[K] extends any[] ? Array<SchemaArrayKeys<T[K]> & R> : (SchemaKeys<T[K]> & R));
 	};
 
-export type IFilterSchema<T extends object> = IFilterSchemaBase<RequirePropertyOf<T>, IRequired> | IFilterSchemaBase<OptionalPropertyOf<T>, INotRequired>;
+export type IFilterSchema<T extends object> = IFilterSchemaBase<RequirePropertyOf<T>, IRequired> &
+	IFilterSchemaBase<Required<OptionalPropertyOf<T>>, INotRequired>;
 
-const convert = (targetType: string, sourceValue: any | any[]): any | any[] => {
+const convert = (targetType: string, sourceValue: any | any[], forceCase?: 'upper' | 'lower' | undefined): any | any[] => {
 	let targetValue = sourceValue;
 	if (Array.isArray(sourceValue)) {
-		targetValue = sourceValue.map((d) => convert(targetType, d));
+		targetValue = sourceValue.map((d) => convert(targetType, d, forceCase));
 	} else {
 		if (sourceValue === undefined || sourceValue === null) {
 			throw new TypeError('trying to convert empty data');
@@ -235,6 +277,16 @@ const convert = (targetType: string, sourceValue: any | any[]): any | any[] => {
 							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
 					}
 				}
+				if (forceCase) {
+					switch (forceCase) {
+						case 'upper':
+							targetValue = sourceValue.toUpperCase();
+							break;
+						case 'lower':
+							targetValue = sourceValue.toLowerCase();
+							break;
+					}
+				}
 				break;
 			}
 			case 'object': {
@@ -290,30 +342,49 @@ const handlefilter = <T extends IStringIndexSignature | IStringIndexSignature[]>
 	}
 };
 
+const getSchemaKey = <T extends IStringIndexSignature>(
+	filterKey: SchemaKeys<any> | Array<SchemaKeys<any>>,
+): {isArray: boolean; sk: SchemaKeys<T> & (IRequired | INotRequired)} => {
+	let isArray = false;
+	let sk: SchemaKeys<T> & (IRequired | INotRequired);
+	if (Array.isArray(filterKey)) {
+		isArray = true;
+		sk = filterKey[0];
+	} else {
+		sk = filterKey;
+	}
+	return {isArray, sk};
+};
+
 export const filterSchema = <T extends IStringIndexSignature>(data: object, filter: IFilterSchema<T>) => {
 	const out: any = {};
-	Object.keys(filter).forEach((key) => {
-		let isArray = false;
-		let sk: SchemaKeys<T>;
-		if (Array.isArray(filter[key])) {
-			isArray = true;
-			sk = filter[key][0] as SchemaKeys<T>;
-		} else {
-			sk = filter[key] as SchemaKeys<T>;
-		}
-		let value = data[key] as any;
+	Object.keys(filter).forEach((filterKey) => {
+		const filterValue = filter[filterKey] as SchemaKeys<any> | Array<SchemaKeys<any>>;
+		const {isArray, sk} = getSchemaKey<T>(filterValue);
+		const isHidden = sk.hidden && sk.hidden === true ? true : false;
+		let value = data[filterKey] as any;
 		if (isArray === true && !Array.isArray(value)) {
 			// if we expect array and it's not, we nicely upgrade to array value
 			value = [value];
 		}
 		if (isArray === false && Array.isArray(value)) {
-			throw new TypeError(`data for ${key} should not be array`);
+			throw new TypeError(`data for ${filterKey} should not be array`);
 		}
-		if (sk.required && sk.required === true && !(key in data)) {
-			throw new TypeError(`key ${key} is required`);
+		// insert default value if value is not defined
+		if (value === undefined && sk.default) {
+			value = sk.default;
 		}
-		if (key in data && !(sk.hidden && sk.hidden === true)) {
-			out[key] = sk.type === 'schema' ? handlefilter(value, sk.filter, sk.required) : convert(sk.type, value);
+		if (sk.required && sk.required === true && value === undefined) {
+			throw new TypeError(`key ${filterKey} is required`);
+		}
+		if (value !== undefined && !isHidden) {
+			if (isSchemaFilterKey(sk)) {
+				out[filterKey] = handlefilter(value, sk.filter, sk.required);
+			} else if (isStringFilterKey(sk)) {
+				out[filterKey] = convert(sk.type, value, sk.forceCase);
+			} else {
+				out[filterKey] = convert(sk.type, value);
+			}
 		}
 	});
 	return out as T;
