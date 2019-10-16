@@ -178,10 +178,10 @@ type IFilterSchemaBase<T extends ITypedObject, R extends IRequired | INotRequire
 export type IFilterSchema<T extends object> = IFilterSchemaBase<RequirePropertyOf<T>, IRequired> &
 	IFilterSchemaBase<Required<OptionalPropertyOf<T>>, INotRequired>;
 
-const convert = (targetType: string, sourceValue: any | any[], forceCase?: 'upper' | 'lower' | undefined): any | any[] => {
+const convert = (targetType: string, sourceValue: any | any[], options?: IFilterOptions, forceCase?: 'upper' | 'lower' | undefined): any | any[] => {
 	let targetValue = sourceValue;
 	if (Array.isArray(sourceValue)) {
-		targetValue = sourceValue.map((d) => convert(targetType, d, forceCase));
+		targetValue = sourceValue.map((d) => convert(targetType, d, options, forceCase));
 	} else {
 		if (sourceValue === undefined || sourceValue === null) {
 			throw new TypeError('trying to convert empty data');
@@ -261,6 +261,10 @@ const convert = (targetType: string, sourceValue: any | any[], forceCase?: 'uppe
 						default:
 							throw new TypeError('not found type conversion ' + sourceType + ' => ' + targetType);
 					}
+				}
+				// we convert Date object to milliseconds for wire as JSON can't handle Date's
+				if (options && options.toWire) {
+					targetValue = targetValue.getTime();
 				}
 				break;
 			}
@@ -356,7 +360,11 @@ const getSchemaKey = <T extends IStringIndexSignature>(
 	return {isArray, sk};
 };
 
-export const filterSchema = <T extends IStringIndexSignature>(data: object, filter: IFilterSchema<T>) => {
+interface IFilterOptions {
+	toWire?: boolean;
+}
+
+export const filterSchema = <T extends IStringIndexSignature>(data: object, filter: IFilterSchema<T>, options?: IFilterOptions) => {
 	const out: any = {};
 	Object.keys(filter).forEach((filterKey) => {
 		const filterValue = filter[filterKey] as SchemaKeys<any> | Array<SchemaKeys<any>>;
@@ -381,15 +389,15 @@ export const filterSchema = <T extends IStringIndexSignature>(data: object, filt
 			if (isSchemaFilterKey(sk)) {
 				out[filterKey] = handlefilter(value, sk.filter, sk.required);
 			} else if (isStringFilterKey(sk)) {
-				out[filterKey] = convert(sk.type, value, sk.forceCase);
+				out[filterKey] = convert(sk.type, value, options, sk.forceCase);
 			} else {
-				out[filterKey] = convert(sk.type, value);
+				out[filterKey] = convert(sk.type, value, options);
 			}
 		}
 	});
 	return out as T;
 };
 
-export const filterSchemaArray = <T extends IStringIndexSignature[]>(dataArray: object[], filter: IFilterSchema<T>) => {
-	return dataArray.map((e) => filterSchema<T>(e, filter));
+export const filterSchemaArray = <T extends IStringIndexSignature[]>(dataArray: object[], filter: IFilterSchema<T>, options?: IFilterOptions) => {
+	return dataArray.map((e) => filterSchema<T>(e, filter, options));
 };

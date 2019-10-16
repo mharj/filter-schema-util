@@ -327,5 +327,21 @@ describe('filter', () => {
 				objectClass: ['posixAccount'],
 			});
 		});
+		it('should hanle wire format', () => {
+			const filter: IFilterSchema<{date: Date}> = {
+				date: {type: 'date', required: true},
+			};
+			const date = new Date();
+			const output = filterSchema(
+				{
+					date,
+				},
+				filter,
+				{toWire: true},
+			);
+			expect(output).to.be.eql({
+				date: date.getTime(),
+			});
+		});
 	});
 });
