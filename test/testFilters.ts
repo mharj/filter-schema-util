@@ -136,6 +136,10 @@ describe('filter', () => {
 			it('date: number => date', () => {
 				expect(filterSchema({value: 1569166591952}, dateTestFilter)).to.be.eql({value: new Date(1569166591952)});
 			});
+
+			it('date: date => number (with toWire)', () => {
+				expect(filterSchema({value: new Date(1569166591952)}, dateTestFilter, {toWire: true})).to.be.eql({value: 1569166591952});
+			});
 		});
 	});
 	describe('filterObject', () => {
@@ -327,7 +331,7 @@ describe('filter', () => {
 				objectClass: ['posixAccount'],
 			});
 		});
-		it('should hanle wire format', () => {
+		it('should handle wire format', () => {
 			const filter: IFilterSchema<{date: Date}> = {
 				date: {type: 'date', required: true},
 			};

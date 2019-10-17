@@ -321,34 +321,35 @@ const convert = (targetType: string, sourceValue: any | any[], options?: IFilter
 	return targetValue;
 };
 
-const handlefilter = <T extends IStringIndexSignature | IStringIndexSignature[]>(data: object, filter: IFilterSchema<T>, required?: boolean) => {
-	if (required) {
+const handlefilter = <T extends IStringIndexSignature | IStringIndexSignature[]>(sk: ISchemaKeyFilterSchema<T> & (IRequired | INotRequired), data: object) => {
+	if (sk.required) {
 		if (Array.isArray(data)) {
-			return filterSchemaArray(data, filter);
+			return filterSchemaArray(data, sk.filter);
 		} else {
-			return filterSchema(data, filter);
+			return filterSchema(data, sk.filter);
 		}
 	} else {
 		// if it's not requied and we are failing to filter, we just return empty data
 		if (Array.isArray(data)) {
 			try {
-				return filterSchemaArray(data, filter);
+				return filterSchemaArray(data, sk.filter);
 			} catch (err) {
 				return [];
 			}
 		} else {
 			try {
-				return filterSchema(data, filter);
+				return filterSchema(data, sk.filter);
 			} catch (err) {
 				return undefined;
 			}
 		}
 	}
 };
+type SchemaKeysWithRequirements<T extends IStringIndexSignature> = SchemaKeys<T> & (IRequired | INotRequired);
 
 const getSchemaKey = <T extends IStringIndexSignature>(
 	filterKey: SchemaKeys<any> | Array<SchemaKeys<any>>,
-): {isArray: boolean; sk: SchemaKeys<T> & (IRequired | INotRequired)} => {
+): {isArray: boolean; sk: SchemaKeysWithRequirements<T>} => {
 	let isArray = false;
 	let sk: SchemaKeys<T> & (IRequired | INotRequired);
 	if (Array.isArray(filterKey)) {
@@ -364,6 +365,13 @@ interface IFilterOptions {
 	toWire?: boolean;
 }
 
+/**
+ * Filter data using schema file
+ * @param {object} data to filter
+ * @param {object} filter schema to use filter data
+ * @param {object} options
+ * @param {boolean} options.toWire handle conversions to more wire friendly (ie. Data to msec)
+ */
 export const filterSchema = <T extends IStringIndexSignature>(data: object, filter: IFilterSchema<T>, options?: IFilterOptions) => {
 	const out: any = {};
 	Object.keys(filter).forEach((filterKey) => {
@@ -387,7 +395,7 @@ export const filterSchema = <T extends IStringIndexSignature>(data: object, filt
 		}
 		if (value !== undefined && !isHidden) {
 			if (isSchemaFilterKey(sk)) {
-				out[filterKey] = handlefilter(value, sk.filter, sk.required);
+				out[filterKey] = handlefilter(sk, value);
 			} else if (isStringFilterKey(sk)) {
 				out[filterKey] = convert(sk.type, value, options, sk.forceCase);
 			} else {
@@ -398,6 +406,13 @@ export const filterSchema = <T extends IStringIndexSignature>(data: object, filt
 	return out as T;
 };
 
+/**
+ * Filter array of data using schema file
+ * @param {object[]} data array to filter
+ * @param {object} filter schema to use filter data
+ * @param {object} options
+ * @param {boolean} options.toWire handle conversions to more wire friendly (ie. Data to msec)
+ */
 export const filterSchemaArray = <T extends IStringIndexSignature[]>(dataArray: object[], filter: IFilterSchema<T>, options?: IFilterOptions) => {
 	return dataArray.map((e) => filterSchema<T>(e, filter, options));
 };
