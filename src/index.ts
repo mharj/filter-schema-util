@@ -97,10 +97,10 @@ interface ISchemaKeyFilterSchema<T = TypedObjectValues> extends ISchemaKeySchema
 interface ISchemaKeyFilterSchemaArray<T = TypedObjectValues> extends ISchemaKeySchemaType<'schema'> {
 	type: T extends object[] ? 'schema' : never;
 }
-const isSchemaFilterKey = <T extends TypedObjectValues>(key: SchemaKeys<T>): key is ISchemaKeyFilterSchema<T> => {
+const isSchemaFilterKey = <T extends object>(key: SchemaKeys<T>): key is ISchemaKeyFilterSchema<T> => {
 	return key.type === 'schema';
 };
-const isStringFilterKey = <T extends TypedObjectValues>(key: SchemaKeys<T>): key is ISchemaKeyString<T> => {
+const isStringFilterKey = <T extends object>(key: SchemaKeys<T>): key is ISchemaKeyString<T> => {
 	return key.type === 'string';
 };
 
@@ -161,7 +161,7 @@ type SchemaArrayKeys<T> =
 	| ISchemaKeyDateArray<T>
 	| ISchemaKeyBooleanArray<T>;
 
-type SchemaKeys<T extends TypedObjectValues> =
+type SchemaKeys<T extends object> =
 	| ISchemaKeyInteger<T>
 	| ISchemaKeyFloat<T>
 	| ISchemaKeyFilterSchema<T>
@@ -170,12 +170,12 @@ type SchemaKeys<T extends TypedObjectValues> =
 	| ISchemaKeyDate<T>
 	| ISchemaKeyBoolean<T>;
 
-type IFilterSchemaBase<T extends ITypedObject, R extends IRequired | INotRequired> = IStringIndexSignature &
+type IFilterSchemaBase<T extends IStringIndexSignature, R extends IRequired | INotRequired> = IStringIndexSignature &
 	{
 		[K in Extract<keyof T, string>]: (T[K] extends any[] ? Array<SchemaArrayKeys<T[K]> & R> : (SchemaKeys<T[K]> & R));
 	};
 
-export type IFilterSchema<T extends object> = IFilterSchemaBase<RequirePropertyOf<T>, IRequired> &
+export type IFilterSchema<T extends IStringIndexSignature> = IFilterSchemaBase<RequirePropertyOf<T>, IRequired> &
 	IFilterSchemaBase<Required<OptionalPropertyOf<T>>, INotRequired>;
 
 const convert = (targetType: string, sourceValue: any | any[], options?: IFilterOptions, forceCase?: 'upper' | 'lower' | undefined): any | any[] => {
