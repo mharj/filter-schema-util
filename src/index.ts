@@ -108,6 +108,8 @@ interface IStringIndexSignature {
 	[index: string]: any;
 }
 
+
+type KeysOfType<T, U> = { [K in keyof T]: T[K] extends U ? K : never }[keyof T];
 /**
  * get only optional properties
  */
@@ -133,6 +135,22 @@ type RequirePropertyOf<T extends object> = Pick<
 		undefined
 	>
 >;
+
+export type NewRequirePropertyOf<T extends object> = Pick<
+	T,
+	RequiredKeys<T>
+>;
+
+export type RequiredKeys<T> = Exclude<KeysOfType<T, Exclude<T[keyof T], undefined>>, undefined>;
+export type OptionalKeys<T> = Exclude<keyof T, RequiredKeys<T>>;
+
+interface IDemo {
+	test?: string;
+}
+export const data: RequirePropertyOf<IDemo> = {
+	test: 'asd'
+}
+
 export type IncludeTypes<T, D> = Pick<
 	T,
 	Exclude<
@@ -152,6 +170,7 @@ export type ExcludeTypes<T, D> = Pick<
 		undefined
 	>
 >;
+
 type SchemaArrayKeys<T> =
 	| ISchemaKeyFilterSchemaArray<T>
 	| ISchemaKeyObjectArray<T>
