@@ -347,5 +347,20 @@ describe('filter', () => {
 				date: date.getTime(),
 			});
 		});
+		it('should handle multiple types', () => {
+			const filter: IFilterSchema<{name: string | undefined}> = {
+				name: {type: 'string'},
+			};
+			const output = filterSchema(
+				{
+					name: 'test',
+				},
+				filter,
+				{toWire: true},
+			);
+			expect(output).to.be.eql({
+				name: 'test',
+			});
+		});
 	});
 });
