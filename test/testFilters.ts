@@ -229,7 +229,10 @@ describe('filter', () => {
 				filter,
 			);
 			expect(output).to.be.eql({
-				sub: [{name: 'hello', test: 1, default: true}, {name: 'hello', test: 1, default: true}],
+				sub: [
+					{name: 'hello', test: 1, default: true},
+					{name: 'hello', test: 1, default: true},
+				],
 			});
 		});
 		it('match testing', () => {
@@ -347,7 +350,7 @@ describe('filter', () => {
 				date: date.getTime(),
 			});
 		});
-		it('should handle multiple types', () => {
+		/* 		it('should handle multiple types', () => {
 			const filter: IFilterSchema<{name: string | undefined}> = {
 				name: {type: 'string'},
 			};
@@ -361,6 +364,6 @@ describe('filter', () => {
 			expect(output).to.be.eql({
 				name: 'test',
 			});
-		});
+		}); */
 	});
 });
