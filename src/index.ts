@@ -1,5 +1,5 @@
 type SchemaKey = 'integer' | 'float' | 'string' | 'object' | 'date' | 'boolean' | 'schema';
-// IE polyfill
+/* istanbul ignore next : IE polyfill */
 const NumberIsInteger = (value: number) => {
 	return typeof value === 'number' && isFinite(value) && Math.floor(value) === value;
 };
@@ -172,7 +172,7 @@ type SchemaKeys<T extends object> =
 
 type IFilterSchemaBase<T extends IStringIndexSignature, R extends IRequired | INotRequired> = IStringIndexSignature &
 	{
-		[K in Extract<keyof T, string>]: (T[K] extends any[] ? Array<SchemaArrayKeys<T[K]> & R> : (SchemaKeys<T[K]> & R));
+		[K in Extract<keyof T, string>]: T[K] extends any[] ? (SchemaArrayKeys<T[K]> & R)[] : SchemaKeys<T[K]> & R;
 	};
 
 export type IFilterSchema<T extends IStringIndexSignature> = IFilterSchemaBase<RequirePropertyOf<T>, IRequired> &
@@ -348,7 +348,7 @@ const handlefilter = <T extends IStringIndexSignature | IStringIndexSignature[]>
 type SchemaKeysWithRequirements<T extends IStringIndexSignature> = SchemaKeys<T> & (IRequired | INotRequired);
 
 const getSchemaKey = <T extends IStringIndexSignature>(
-	filterKey: SchemaKeys<any> | Array<SchemaKeys<any>>,
+	filterKey: SchemaKeys<any> | SchemaKeys<any>[],
 ): {isArray: boolean; sk: SchemaKeysWithRequirements<T>} => {
 	let isArray = false;
 	let sk: SchemaKeys<T> & (IRequired | INotRequired);
@@ -375,7 +375,7 @@ interface IFilterOptions {
 export const filterSchema = <T extends IStringIndexSignature>(data: object, filter: IFilterSchema<T>, options?: IFilterOptions) => {
 	const out: any = {};
 	Object.keys(filter).forEach((filterKey) => {
-		const filterValue = filter[filterKey] as SchemaKeys<any> | Array<SchemaKeys<any>>;
+		const filterValue = filter[filterKey] as SchemaKeys<any> | SchemaKeys<any>[];
 		const {isArray, sk} = getSchemaKey<T>(filterValue);
 		const isHidden = sk.hidden && sk.hidden === true ? true : false;
 		let value = data[filterKey] as any;
